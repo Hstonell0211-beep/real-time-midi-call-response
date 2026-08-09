@@ -19,8 +19,6 @@ from pathlib import Path
 from statistics import mean, stdev
 from typing import Dict, Iterable, List, Sequence, Tuple
 
-import numpy as np
-
 import evaluate_melody_metrics as metrics
 
 
@@ -190,6 +188,8 @@ def summarize(rows: Sequence[Dict[str, object]], keys: Sequence[str]) -> List[Di
 
 
 def bootstrap_ci(differences: np.ndarray, iterations: int, seed: int) -> Tuple[float, float]:
+    import numpy as np
+
     rng = np.random.default_rng(seed)
     means: List[np.ndarray] = []
     remaining = iterations
@@ -203,6 +203,8 @@ def bootstrap_ci(differences: np.ndarray, iterations: int, seed: int) -> Tuple[f
 
 
 def paired_tests(rows: Sequence[Dict[str, object]], iterations: int) -> List[Dict[str, object]]:
+    import numpy as np
+
     buckets: Dict[Tuple[str, str, int], Dict[str, float]] = defaultdict(dict)
     for row in rows:
         key = (str(row.get("preset")), str(row.get("call_id")), int(fnum(row.get("trial"))))
