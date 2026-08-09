@@ -1,0 +1,20 @@
+{
+  "score_version": "structural_compliance_v1.1",
+  "source_ablation_sha256": "a41047ca74013f54a4ae6999a402bf7e2d83cabdbb1664bebf55827317e48150",
+  "export_script_sha256": "12df8b309a22a950804e52a678a7ba59b653fff84098e72c599ecea8b70e057d",
+  "ablation_trial_metrics": {
+    "rows": 63000,
+    "sha256": "fe572db5d714bc59e0f1a2f528c0a8195dc65aca4654776bae6adc670317c94a",
+    "semantic_changes": [
+      "fallback_count renamed to event_repair_count",
+      "fallback_used replaced by event_repair_used",
+      "motif_fallback_used and motif_fallback_count added explicitly as zero",
+      "style and non-style component scores added",
+      "absolute response MIDI paths replaced by filenames"
+    ]
+  },
+  "latency_log_all_trials": {
+    "rows": 18000,
+    "sha256": "716104dcf67ce0e3dec671e870f4a0611c20c80b2ded8134750d41df46f0c47f"
+  }
+}

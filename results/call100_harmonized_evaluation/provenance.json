@@ -1,0 +1,24 @@
+{
+  "created_at": "2026-08-09T17:28:47+08:00",
+  "score_version": "structural_compliance_v1.1",
+  "source_hashes": {
+    "ablation_all_results.csv": "a41047ca74013f54a4ae6999a402bf7e2d83cabdbb1664bebf55827317e48150",
+    "legacy_all_objective_results.csv": "1f679cf26044e8679d262fe76bff24a9b6335e7c0155876f51389aa25712b6fc",
+    "evaluate_melody_metrics.py": "05ff71c8ca727f9d66475ddaf2081ee9fe28bdfba80d55a5e49e3ac49a672db4"
+  },
+  "candidate_sources": {
+    "amt_small_raw": "A0_raw_amt from the shared ablation batch",
+    "amt_small_controlled": "A6_full_controlled from the same shared batch",
+    "motif_transform_baseline": "legacy motif batch, re-scored with the same evaluator"
+  },
+  "public_trial_metrics": {
+    "path": "harmonized_trial_metrics.csv",
+    "sha256": "4709cfcb53d3a13be4a20c9e4face33ce4b59fc461d274d01dbcfd3928a4d751",
+    "path_redaction": "The response_midi_path field was replaced by response_midi_file; MIDI SHA-256 values are retained."
+  },
+  "audit": {
+    "row_count": 27000,
+    "max_abs_objective_score_drift": 4.999999999588667e-7,
+    "rows_with_drift_gt_5e-7": 0
+  }
+}

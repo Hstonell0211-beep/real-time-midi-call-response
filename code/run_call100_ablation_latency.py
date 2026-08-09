@@ -126,6 +126,8 @@ ABLATION_FIELDS = [
     "duration_stretch_factor",
     "fallback_used",
     "fallback_count",
+    "event_repair_count",
+    "motif_fallback_used",
     "empty_output_before_fallback",
     "prompt_cleaning_applied",
     "repetition_resample_count",
@@ -369,6 +371,13 @@ def aggregate_results(
                 actual_seconds = fnum(metric.get("duration_seconds"))
                 match_ratio, stretch_factor, duration_error = duration_ratio(actual_seconds, raw_seconds)
                 fallback_count = int(fnum(answer.get("fallback_count"), 0))
+                motif_fallback_used = int(fnum(answer.get("motif_fallback_used"), 0))
+                event_repair_count = int(
+                    fnum(
+                        answer.get("event_repair_count"),
+                        max(0, fallback_count - motif_fallback_used),
+                    )
+                )
                 variant_meta = VARIANT_BY_NAME[variant]
                 rows.append(
                     {
@@ -410,8 +419,10 @@ def aggregate_results(
                         "duration_match_ratio": match_ratio,
                         "duration_error_sec": duration_error,
                         "duration_stretch_factor": fnum(answer.get("duration_stretch_factor"), stretch_factor),
-                        "fallback_used": int(fallback_count > 0 or bool(answer.get("generation_error"))),
+                        "fallback_used": motif_fallback_used,
                         "fallback_count": fallback_count,
+                        "event_repair_count": event_repair_count,
+                        "motif_fallback_used": motif_fallback_used,
                         "empty_output_before_fallback": int(fnum(answer.get("empty_output_before_fallback"), 0)),
                         "prompt_cleaning_applied": int(fnum(answer.get("prompt_cleaning_applied"), 0)),
                         "repetition_resample_count": int(fnum(answer.get("rejected_repeat_count"), 0)),
@@ -723,7 +734,20 @@ def preload_comparison(latency_rows: Sequence[Dict[str, object]]) -> List[Dict[s
             off = fnum(vals["L0_preload_off"].get("endpoint_to_first_midi_ms"))
             on = fnum(vals["L1_preload_on"].get("endpoint_to_first_midi_ms"))
             diffs.append(off - on)
-    observed, low, high, p_value = base.bootstrap_ci(diffs, 1000, 20260622)
+    observed, low, high, _ = base.bootstrap_ci(diffs, 1000, 20260622)
+    positive_pairs = sum(diff > 0 for diff in diffs)
+    negative_pairs = sum(diff < 0 for diff in diffs)
+    tied_pairs = len(diffs) - positive_pairs - negative_pairs
+    non_tied_pairs = positive_pairs + negative_pairs
+    tail_count = min(positive_pairs, negative_pairs)
+    sign_test_numerator = 2 * sum(math.comb(non_tied_pairs, i) for i in range(tail_count + 1))
+    sign_test_denominator = 2**non_tied_pairs
+    if non_tied_pairs == 0:
+        p_value = "1.000000"
+    elif sign_test_numerator * 1_000_000 < sign_test_denominator:
+        p_value = "<0.000001"
+    else:
+        p_value = f"{min(1.0, sign_test_numerator / sign_test_denominator):.6f}"
     return [
         {
             "comparison": "L1_preload_on_vs_L0_preload_off",
@@ -731,7 +755,10 @@ def preload_comparison(latency_rows: Sequence[Dict[str, object]]) -> List[Dict[s
             "mean_latency_reduction_ms": f"{observed:.6f}",
             "ci95_low": f"{low:.6f}",
             "ci95_high": f"{high:.6f}",
-            "p_two_sided": f"{p_value:.6f}",
+            "positive_pairs": positive_pairs,
+            "negative_pairs": negative_pairs,
+            "tied_pairs": tied_pairs,
+            "p_two_sided_sign_test": p_value,
         }
     ]
 
@@ -816,6 +843,7 @@ def write_reports(
     module_rows: Sequence[Dict[str, object]],
     latency_summary_condition: Sequence[Dict[str, object]],
     preload_rows: Sequence[Dict[str, object]],
+    preload_window_ms: float,
 ) -> None:
     lines = [
         "# Call100 Ablation Study",
@@ -848,21 +876,21 @@ def write_reports(
     (output_dir / "ablation_report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     latency_lines = [
-        "# Call100 Realtime Latency Logging Study",
+        "# Call100 Runtime Latency Logging and Scheduler Replay",
         "",
         "## Design",
         "",
         "- L0 preload off: inference starts at endpoint commit.",
-        "- L1 preload on: inference is modeled as starting during the candidate-endpoint confirmation window.",
-        "- The logged inference timings come from actual local AMT generation during the A6 full-controlled ablation runs.",
-        "- MIDI output timing is represented by the local playback scheduler model with the configured micro-buffer.",
+        f"- L1 preload on: decoding may overlap the candidate-confirmation interval by up to `{preload_window_ms:.0f} ms`.",
+        "- The logged inference timings come from actual local AMT decoding during the A6 full-controlled ablation runs.",
+        "- Endpoint-to-first-MIDI timing is a deterministic scheduler replay with the configured micro-buffer.",
         "",
         "## Summary By Condition",
         "",
     ]
     latency_lines.extend(base.report_table(latency_summary_condition, ["condition", "sample_count", "mean_latency_ms", "p50_latency_ms", "p95_latency_ms", "p99_latency_ms", "max_latency_ms", "underrun_rate", "mean_first_token_latency_ms", "mean_total_generation_ms"], 10))
     latency_lines.extend(["", "## Preload Comparison", ""])
-    latency_lines.extend(base.report_table(preload_rows, ["comparison", "paired_sample_count", "mean_latency_reduction_ms", "ci95_low", "ci95_high", "p_two_sided"], 10))
+    latency_lines.extend(base.report_table(preload_rows, ["comparison", "paired_sample_count", "mean_latency_reduction_ms", "ci95_low", "ci95_high", "positive_pairs", "negative_pairs", "tied_pairs", "p_two_sided_sign_test"], 10))
     (output_dir / "latency_report.md").write_text("\n".join(latency_lines) + "\n", encoding="utf-8")
 
 
@@ -902,7 +930,7 @@ def write_all_outputs(args: argparse.Namespace, presets: Sequence[str], variants
     chart_latency_table(latency_by_condition, chart_dir)
     chart_length_scatter(latency_trials, chart_dir)
 
-    write_reports(output_dir, presets, variants, validation, variant_summary, module_rows, latency_by_condition, preload_rows)
+    write_reports(output_dir, presets, variants, validation, variant_summary, module_rows, latency_by_condition, preload_rows, args.preload_window_ms)
     return validation
 
 
@@ -941,7 +969,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--pentatonic-root", type=int, default=60)
     parser.add_argument("--pentatonic-mode", choices=["major", "minor"], default="major")
     parser.add_argument("--bootstrap-iterations", type=int, default=1000)
-    parser.add_argument("--preload-window-ms", type=float, default=250.0)
+    parser.add_argument(
+        "--preload-window-ms",
+        type=float,
+        default=150.0,
+        help=(
+            "modeled pre-commit inference overlap in milliseconds; keep this "
+            "consistent with live_call_response.py --endpoint-confirm-delay"
+        ),
+    )
     parser.add_argument("--micro-buffer-ms", type=float, default=80.0)
     parser.add_argument("--underrun-deadline-ms", type=float, default=80.0)
     return parser

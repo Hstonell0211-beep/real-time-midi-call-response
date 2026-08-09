@@ -715,7 +715,8 @@ def generate_raw_amt(
     response_events: List[int] = []
     for event in response_generated:
         response_events.extend(event_to_tokens(event))
-    response = apply_response_style(response_events, call_events, args)
+    # Raw AMT must remain free of every external style or theory projection.
+    response = response_events
     combined = ops.sort(call_events + response)
     return combined, response
 
@@ -875,12 +876,14 @@ def generate_ablation_amt(
         "rejected_dominant_count": 0,
         "fallback_count": 0,
     }
+    stats["event_repair_count"] = int(stats.get("fallback_count", 0))
     empty_before_fallback = 1 if not response_generated else 0
     used_motif_fallback = 0
     if not response_generated and modules["fallback"]:
         combined, response, motif_stats = generate_motif_baseline(notes, response_seconds, args, rng)
         stats.update(motif_stats)
-        stats["fallback_count"] = int(stats.get("fallback_count", 0)) + 1
+        stats["fallback_count"] = int(stats.get("event_repair_count", 0)) + 1
+        stats["event_repair_count"] = int(stats.get("event_repair_count", 0))
         stats["motif_fallback_used"] = 1
         stats["empty_output_before_fallback"] = empty_before_fallback
         stats["prompt_cleaning_applied"] = int(prompt_cleaning_applied)
@@ -927,6 +930,7 @@ def generate_ablation_amt(
     combined = ops.sort(base_call_events + response_events)
     stats["generation_error"] = ""
     stats["motif_fallback_used"] = used_motif_fallback
+    stats["event_repair_count"] = int(stats.get("event_repair_count", 0))
     stats["empty_output_before_fallback"] = empty_before_fallback
     stats["prompt_cleaning_applied"] = int(prompt_cleaning_applied)
     stats["repetition_suppression_applied"] = int(modules["repetition_suppression"])
@@ -991,7 +995,11 @@ def generate_controlled_amt(
     response_events = shift_events_by_ticks(response_events, original_start_tick - prompt_start_tick)
     response_events = apply_response_style(response_events, original_call_events, args)
     combined = ops.sort(original_call_events + response_events)
-    return combined, response_events, asdict(controller.stats)
+    stats = asdict(controller.stats)
+    stats["event_repair_count"] = int(stats.get("fallback_count", 0))
+    stats["motif_fallback_used"] = 0
+    stats["empty_output_before_fallback"] = int(not response_generated)
+    return combined, response_events, stats
 
 
 def generate_motif_baseline(
@@ -1141,6 +1149,7 @@ def write_answer_key(path: Path, rows: List[Dict[str, object]]) -> None:
         "rejected_repeat_count",
         "rejected_dominant_count",
         "fallback_count",
+        "event_repair_count",
         "generation_error",
         "ablation_variant",
         "prompt_cleaning_applied",
@@ -1353,6 +1362,7 @@ def generate_samples(args: argparse.Namespace) -> None:
                         "rejected_repeat_count": stats.get("rejected_repeat_count", 0),
                         "rejected_dominant_count": stats.get("rejected_dominant_count", 0),
                         "fallback_count": stats.get("fallback_count", 0),
+                        "event_repair_count": stats.get("event_repair_count", stats.get("fallback_count", 0)),
                         "generation_error": stats.get("generation_error", ""),
                         "ablation_variant": args.ablation_variant,
                         "prompt_cleaning_applied": stats.get("prompt_cleaning_applied", ""),
@@ -1445,6 +1455,9 @@ def generate_samples(args: argparse.Namespace) -> None:
                 "rejected_repeat_count": sample.control_stats.get("rejected_repeat_count", 0),
                 "rejected_dominant_count": sample.control_stats.get("rejected_dominant_count", 0),
                 "fallback_count": sample.control_stats.get("fallback_count", 0),
+                "event_repair_count": sample.control_stats.get(
+                    "event_repair_count", sample.control_stats.get("fallback_count", 0)
+                ),
                 "generation_error": sample.control_stats.get("generation_error", ""),
                 "ablation_variant": args.ablation_variant,
                 "prompt_cleaning_applied": sample.control_stats.get("prompt_cleaning_applied", ""),

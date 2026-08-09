@@ -1,0 +1,9 @@
+{
+  "legacy_raw_label": "style-projected raw path; superseded",
+  "legacy_raw_mean": 0.6831410071111111,
+  "true_a0_raw_mean": 0.5609675054444444,
+  "difference": 0.12217350166666674,
+  "legacy_controlled_event_repair_sample_count": 3731,
+  "legacy_controlled_event_repair_sample_rate": 0.41455555555555557,
+  "legacy_controlled_motif_fallback_rate_claim_valid": false
+}

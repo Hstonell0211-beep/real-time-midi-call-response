@@ -7,7 +7,7 @@
 <line x1="185" y1="259.8" x2="275" y2="259.8" stroke="#1d4ed8" stroke-width="2"/>
 <text x="230" y="328" text-anchor="middle" font-family="Arial" font-size="12">L0_preload_off</text>
 <text x="230" y="251.8" text-anchor="middle" font-family="Arial" font-size="11">p50 136 ms</text>
-<line x1="420" y1="276.5" x2="420" y2="276.5" stroke="#111827"/>
+<line x1="420" y1="276.5" x2="420" y2="248.9" stroke="#111827"/>
 <rect x="375" y="276.5" width="90" height="1.0" fill="#bfdbfe" stroke="#2563eb"/>
 <line x1="375" y1="276.5" x2="465" y2="276.5" stroke="#1d4ed8" stroke-width="2"/>
 <text x="420" y="328" text-anchor="middle" font-family="Arial" font-size="12">L1_preload_on</text>

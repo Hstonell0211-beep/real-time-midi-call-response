@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-08-09T17:03:10+08:00",
+  "score_version": "structural_compliance_v1.1",
+  "source_hashes": {
+    "ablation_all_results.csv": "a41047ca74013f54a4ae6999a402bf7e2d83cabdbb1664bebf55827317e48150",
+    "legacy_all_objective_results.csv": "1f679cf26044e8679d262fe76bff24a9b6335e7c0155876f51389aa25712b6fc"
+  },
+  "empty_output_objective_score": 0.0,
+  "privacy": "No participant data are used in this audit."
+}

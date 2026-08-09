@@ -1,0 +1,7 @@
+{
+  "source_manifest_sha256": "5158b8655c86da6618dec68ed02167c3fd34af73b723a5b9484393e2c10eed02",
+  "public_manifest": "call100_manifest_public.csv",
+  "public_manifest_sha256": "808479e82cf486622e5fe76c99691e366fff8ee48b9377c7c9244b805a9d0379",
+  "rows": 100,
+  "path_redaction": "The midi_path and source_file values were reduced to filenames; all non-path manifest fields are unchanged."
+}

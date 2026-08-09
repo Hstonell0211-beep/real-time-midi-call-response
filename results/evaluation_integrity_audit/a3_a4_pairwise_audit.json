@@ -1,0 +1,10 @@
+{
+  "paired_sample_count": 9000,
+  "negative_difference_count": 0,
+  "zero_difference_count": 9000,
+  "positive_difference_count": 0,
+  "mean_difference": 0.0,
+  "min_difference": 0.0,
+  "max_difference": 0.0,
+  "byte_identical_response_midi_count": 9000
+}

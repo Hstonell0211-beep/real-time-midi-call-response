@@ -36,6 +36,19 @@ class Note:
     velocity: int
 
 
+SCORE_VERSION = "structural_compliance_v1.1"
+OBJECTIVE_WEIGHTS = {
+    "tonality_score": 0.22,
+    "rhythm_score": 0.20,
+    "interval_score": 0.18,
+    "repetition_score": 0.16,
+    "pitch_diversity_score": 0.14,
+    "compression_score": 0.10,
+}
+STYLE_COMPLIANCE_WEIGHT = OBJECTIVE_WEIGHTS["tonality_score"] + OBJECTIVE_WEIGHTS["rhythm_score"]
+NON_STYLE_STRUCTURAL_WEIGHT = 1.0 - STYLE_COMPLIANCE_WEIGHT
+
+
 def require_runtime() -> None:
     try:
         import mido  # noqa: F401
@@ -211,6 +224,8 @@ def evaluate_notes(notes: List[Note], ticks_per_beat: int, args: argparse.Namesp
     if not notes:
         return {
             "note_count": 0,
+            "style_compliance_score": 0.0,
+            "non_style_structural_score": 0.0,
             "objective_score": 0.0,
         }
 
@@ -257,13 +272,19 @@ def evaluate_notes(notes: List[Note], ticks_per_beat: int, args: argparse.Namesp
     rhythm_score = (qn + qrf_rate + groove) / 3.0
     tonality_score = (psr + cadence + strong_stable) / 3.0
     compression_score = closeness_score(comp, args.target_compression_ratio, args.compression_tolerance)
+    style_compliance_score = (
+        OBJECTIVE_WEIGHTS["tonality_score"] * tonality_score
+        + OBJECTIVE_WEIGHTS["rhythm_score"] * rhythm_score
+    ) / STYLE_COMPLIANCE_WEIGHT
+    non_style_structural_score = (
+        OBJECTIVE_WEIGHTS["interval_score"] * interval_score
+        + OBJECTIVE_WEIGHTS["repetition_score"] * repetition_score
+        + OBJECTIVE_WEIGHTS["pitch_diversity_score"] * pitch_diversity_score
+        + OBJECTIVE_WEIGHTS["compression_score"] * compression_score
+    ) / NON_STYLE_STRUCTURAL_WEIGHT
     objective_score = (
-        0.22 * tonality_score
-        + 0.20 * rhythm_score
-        + 0.18 * interval_score
-        + 0.16 * repetition_score
-        + 0.14 * pitch_diversity_score
-        + 0.10 * compression_score
+        STYLE_COMPLIANCE_WEIGHT * style_compliance_score
+        + NON_STYLE_STRUCTURAL_WEIGHT * non_style_structural_score
     )
 
     return {
@@ -292,7 +313,52 @@ def evaluate_notes(notes: List[Note], ticks_per_beat: int, args: argparse.Namesp
         "rhythm_score": rhythm_score,
         "tonality_score": tonality_score,
         "compression_score": compression_score,
+        "style_compliance_score": style_compliance_score,
+        "non_style_structural_score": non_style_structural_score,
         "objective_score": objective_score,
+    }
+
+
+def score_spec(args: argparse.Namespace) -> Dict[str, object]:
+    return {
+        "score_version": SCORE_VERSION,
+        "composite_name": "structural_compliance_composite",
+        "legacy_field_name": "objective_score",
+        "weights": OBJECTIVE_WEIGHTS,
+        "decomposition": {
+            "style_compliance_weight": STYLE_COMPLIANCE_WEIGHT,
+            "non_style_structural_weight": NON_STYLE_STRUCTURAL_WEIGHT,
+            "style_compliance_components": ["tonality_score", "rhythm_score"],
+            "non_style_structural_components": [
+                "interval_score",
+                "repetition_score",
+                "pitch_diversity_score",
+                "compression_score",
+            ],
+        },
+        "normalization": {
+            "closeness": "clip(1 - abs(value - target) / tolerance, 0, 1)",
+            "target_pche": args.target_pche,
+            "pche_tolerance": args.pche_tolerance,
+            "target_upc": args.target_upc,
+            "upc_tolerance": args.upc_tolerance,
+            "target_compression_ratio": args.target_compression_ratio,
+            "compression_tolerance": args.compression_tolerance,
+            "large_interval_threshold": args.large_interval_threshold,
+            "stepwise_threshold": args.stepwise_threshold,
+            "qualified_note_beats": args.qualified_note_beats,
+            "rhythm_tolerance_beats": args.rhythm_tolerance_beats,
+            "groove_slots": args.groove_slots,
+            "beats_per_bar": args.beats_per_bar,
+        },
+        "component_formulas": {
+            "tonality_score": "(psr + cadence_score + strong_beat_stable_rate) / 3",
+            "rhythm_score": "(qualified_note_rate + qualified_rhythm_rate + groove_similarity) / 3",
+            "interval_score": "0.6 * stepwise_rate + 0.4 * (1 - tone_span_ratio)",
+            "repetition_score": "clip(1 - 2*cpr - 0.2*max(0, longest_repeat_run-2), 0, 1)",
+            "pitch_diversity_score": "0.55*closeness(pche,2.0,0.65) + 0.45*closeness(upc,5.0,2.0)",
+            "compression_score": "closeness(compression_ratio,0.65,0.35)",
+        },
     }
 
 
@@ -351,6 +417,8 @@ def summarize(rows: List[Dict[str, object]]) -> List[Dict[str, object]]:
 
     metric_names = [
         "objective_score",
+        "style_compliance_score",
+        "non_style_structural_score",
         "tonality_score",
         "rhythm_score",
         "interval_score",

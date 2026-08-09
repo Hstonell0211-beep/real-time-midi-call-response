@@ -1,0 +1,32 @@
+{
+  "benchmark_definition": {
+    "reference": "final Note-Off in each isolated Call100 file",
+    "early_tolerance_s": 0.1,
+    "reported_deadlines_s": [0.5, 1.0, 2.0],
+    "primary_deadline_s": 2.0,
+    "tick_s": 0.005,
+    "trailing_simulation_s": 15.0,
+    "ground_truth_limitation": "File-end proxy; no human phrase-boundary annotation."
+  },
+  "detector_defaults": {
+    "theta": 0.05,
+    "window_size": 8,
+    "min_intensity": 0.25,
+    "chord_cluster_window_s": 0.08,
+    "confirmation_delay_s": 0.15
+  },
+  "source_hashes": {
+    "call100_manifest.csv": "5158b8655c86da6618dec68ed02167c3fd34af73b723a5b9484393e2c10eed02",
+    "midi_vad_endpoint.py": "d8fbd48fe61075ee3cb828006e4bb59da2e501b4450abd50b3c2224708640bf1",
+    "run_endpoint_benchmark.py": "02b7f6e384be3243d88c550bc40f9d91b9f4ff9c93d53612b2a80fbcdb3b43ea"
+  },
+  "public_call_level_results": {
+    "path": "endpoint_call_level_results.csv",
+    "sha256": "3314450569c9b0c876176751d2ca5cecca5069d4e8a5291790075394519dd03d",
+    "path_redaction": "The midi_path field was replaced by midi_file."
+  },
+  "call_count": 100,
+  "condition_count": 11,
+  "row_count": 1100,
+  "bootstrap_iterations": 2000
+}

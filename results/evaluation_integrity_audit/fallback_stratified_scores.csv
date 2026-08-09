@@ -1,0 +1,5 @@
+variant,event_repair_used,sample_count,mean_objective_score,mean_style_compliance_score,mean_non_style_structural_score
+A3,0,5288,0.643951,0.587690,0.684692
+A3,1,3712,0.635647,0.557712,0.692083
+A4,0,5288,0.643951,0.587690,0.684692
+A4,1,3712,0.635647,0.557712,0.692083

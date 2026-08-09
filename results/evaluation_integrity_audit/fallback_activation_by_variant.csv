@@ -1,0 +1,8 @@
+variant,sample_count,event_repair_sample_count,event_repair_sample_rate,event_repair_total_count,empty_output_before_fallback_count,motif_fallback_used_count,motif_fallback_used_rate
+A0,9000,0,0.000000,0,0,0,0.000000
+A1,9000,0,0.000000,0,0,0,0.000000
+A2,9000,4236,0.470667,6888,0,0,0.000000
+A3,9000,3712,0.412444,5263,0,0,0.000000
+A4,9000,3712,0.412444,5263,0,0,0.000000
+A5,9000,3712,0.412444,5263,0,0,0.000000
+A6,9000,3712,0.412444,5263,0,0,0.000000

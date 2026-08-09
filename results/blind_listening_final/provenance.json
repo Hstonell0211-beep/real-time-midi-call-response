@@ -1,0 +1,15 @@
+{
+  "study_id": "mfp-call-response-likert-8item-final-v2",
+  "frozen_export_utc": "2026-08-09T02:00:55Z",
+  "frozen_snapshot_sha256": "d7914c622785bac045e1ca988916c728d3b33c52049ab39414f5e24ba12ee974",
+  "answer_key_sha256": "e2c4613903a2f2b50ad6158d6558b009e1a2a9582ee4213ffadc07fe337c2572",
+  "analysis_script_sha256": "0bb46ffc474f12e71ad3001a752f1e85ddd75548ce5952672be09cdee3ae8d7a",
+  "comparison_summary_sha256": "f19a38456df718b010dbaabd97546ac2ea68aceb0ca113096eac0a8ccdf9dc17",
+  "sample": {
+    "complete_submissions": 44,
+    "raw_rating_rows": 1408,
+    "included_participants": 41,
+    "included_rating_rows": 1312
+  },
+  "public_scope": "Aggregate tables and the analysis script are public. Participant-level exports, exclusion identifiers, answer-key contents, and deployment credentials remain private."
+}

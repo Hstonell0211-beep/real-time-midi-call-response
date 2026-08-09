@@ -15,13 +15,14 @@ Zenodo gives priority to `.zenodo.json` when both files exist.
 2. Log in to Zenodo with the same GitHub account.
 3. Open the Zenodo GitHub page and click **Sync now**.
 4. Toggle this repository on.
-5. Create a GitHub release, for example `v1.0.0`.
+5. Create a GitHub release, for example `v1.1.0`.
 6. Wait for Zenodo to archive the release and mint a version DOI.
 7. Update the README and GitHub Pages DOI badge after the DOI appears.
 
 GitHub release archiving creates a new Zenodo DOI for each release. Use the version DOI for exact reproducibility and the concept DOI for the project as a whole.
 
-## Current DOI
+## DOI Records
 
-- Version DOI: https://doi.org/10.5281/zenodo.20838084
+- v1.0.0 version DOI: https://doi.org/10.5281/zenodo.20838084
+- v1.1.0 version DOI: pending archive creation
 - Concept DOI: https://doi.org/10.5281/zenodo.20838083

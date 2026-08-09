@@ -1,0 +1,50 @@
+{
+  "score_version": "structural_compliance_v1.1",
+  "composite_name": "structural_compliance_composite",
+  "legacy_field_name": "objective_score",
+  "weights": {
+    "tonality_score": 0.22,
+    "rhythm_score": 0.2,
+    "interval_score": 0.18,
+    "repetition_score": 0.16,
+    "pitch_diversity_score": 0.14,
+    "compression_score": 0.1
+  },
+  "decomposition": {
+    "style_compliance_weight": 0.42000000000000004,
+    "non_style_structural_weight": 0.58,
+    "style_compliance_components": [
+      "tonality_score",
+      "rhythm_score"
+    ],
+    "non_style_structural_components": [
+      "interval_score",
+      "repetition_score",
+      "pitch_diversity_score",
+      "compression_score"
+    ]
+  },
+  "normalization": {
+    "closeness": "clip(1 - abs(value - target) / tolerance, 0, 1)",
+    "target_pche": 2.0,
+    "pche_tolerance": 0.65,
+    "target_upc": 5.0,
+    "upc_tolerance": 2.0,
+    "target_compression_ratio": 0.65,
+    "compression_tolerance": 0.35,
+    "large_interval_threshold": 7,
+    "stepwise_threshold": 3,
+    "qualified_note_beats": 0.125,
+    "rhythm_tolerance_beats": 0.065,
+    "groove_slots": 16,
+    "beats_per_bar": 4
+  },
+  "component_formulas": {
+    "tonality_score": "(psr + cadence_score + strong_beat_stable_rate) / 3",
+    "rhythm_score": "(qualified_note_rate + qualified_rhythm_rate + groove_similarity) / 3",
+    "interval_score": "0.6 * stepwise_rate + 0.4 * (1 - tone_span_ratio)",
+    "repetition_score": "clip(1 - 2*cpr - 0.2*max(0, longest_repeat_run-2), 0, 1)",
+    "pitch_diversity_score": "0.55*closeness(pche,2.0,0.65) + 0.45*closeness(upc,5.0,2.0)",
+    "compression_score": "closeness(compression_ratio,0.65,0.35)"
+  }
+}
