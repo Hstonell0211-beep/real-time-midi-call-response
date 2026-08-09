@@ -2,9 +2,9 @@
 
 Code, paper, and verified summary outputs for **Real-Time MIDI Call-and-Response Generation Using Autoregressive Transformers**.
 
-[GitHub repository](https://github.com/MickeyWzt/real-time-midi-call-response) | [Paper PDF](../paper/Real_Time_MIDI_Call_and_Response_Generation_Using_Autoregressive_Transformers.pdf) | [Zenodo concept DOI](https://doi.org/10.5281/zenodo.20838083) | [Release archive](https://github.com/MickeyWzt/real-time-midi-call-response/releases)
+[GitHub repository](https://github.com/MickeyWzt/real-time-midi-call-response) | [Paper PDF](../paper/Real_Time_MIDI_Call_and_Response_Generation_Using_Autoregressive_Transformers.pdf) | [Zenodo v1.1.0 DOI](https://doi.org/10.5281/zenodo.21860065) | [Release archive](https://github.com/MickeyWzt/real-time-midi-call-response/releases/tag/v1.1.0)
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20838083.svg)](https://doi.org/10.5281/zenodo.20838083)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21860065.svg)](https://doi.org/10.5281/zenodo.21860065)
 
 ![System overview](../paper/System_overview.png)
 
@@ -39,7 +39,7 @@ Large model weights, generated MIDI responses, participant-level exports, exclus
 
 ## Citation
 
-Use the version DOI listed in the matching GitHub release for exact reproducibility. The all-versions concept DOI is [10.5281/zenodo.20838083](https://doi.org/10.5281/zenodo.20838083).
+Use the v1.1.0 DOI [10.5281/zenodo.21860065](https://doi.org/10.5281/zenodo.21860065) for exact reproducibility. The all-versions concept DOI is [10.5281/zenodo.20838083](https://doi.org/10.5281/zenodo.20838083).
 
 ```bibtex
 @software{wang_hu_2026_realtime_midi_call_response,
@@ -47,7 +47,7 @@ Use the version DOI listed in the matching GitHub release for exact reproducibil
   title = {Real-Time MIDI Call-and-Response Generation Using Autoregressive Transformers},
   year = {2026},
   version = {1.1.0},
-  doi = {10.5281/zenodo.20838083},
-  url = {https://doi.org/10.5281/zenodo.20838083}
+  doi = {10.5281/zenodo.21860065},
+  url = {https://doi.org/10.5281/zenodo.21860065}
 }
 ```

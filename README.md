@@ -2,13 +2,13 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/MickeyWzt/real-time-midi-call-response)](https://github.com/MickeyWzt/real-time-midi-call-response/releases)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20838083.svg)](https://doi.org/10.5281/zenodo.20838083)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21860065.svg)](https://doi.org/10.5281/zenodo.21860065)
 
 Code and supporting materials for the paper **Real-Time MIDI Call-and-Response Generation Using Autoregressive Transformers** by Wang Zitong and Hu Sitong.
 
 This repository wraps an offline autoregressive symbolic-music Transformer for live MIDI call-and-response performance. The system listens to a human MIDI phrase, detects a likely phrase endpoint, generates a response with an Anticipatory Music Transformer backend, applies phrase-level musical control, and schedules MIDI playback with latency-aware buffering.
 
-The repository is published through GitHub Pages and archived on Zenodo. Use the DOI recorded in the release notes for an exact software version. The stable all-versions concept DOI is [10.5281/zenodo.20838083](https://doi.org/10.5281/zenodo.20838083).
+The repository is published through GitHub Pages and archived on Zenodo. The v1.1.0 archive DOI is [10.5281/zenodo.21860065](https://doi.org/10.5281/zenodo.21860065). The stable all-versions concept DOI is [10.5281/zenodo.20838083](https://doi.org/10.5281/zenodo.20838083).
 
 ## Paper Summary
 
@@ -197,8 +197,8 @@ Use `CITATION.cff` for GitHub citation metadata. Zenodo release metadata is defi
   title = {Real-Time MIDI Call-and-Response Generation Using Autoregressive Transformers},
   year = {2026},
   version = {1.1.0},
-  doi = {10.5281/zenodo.20838083},
-  url = {https://doi.org/10.5281/zenodo.20838083}
+  doi = {10.5281/zenodo.21860065},
+  url = {https://doi.org/10.5281/zenodo.21860065}
 }
 ```
 

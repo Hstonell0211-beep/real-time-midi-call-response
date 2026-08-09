@@ -24,5 +24,5 @@ GitHub release archiving creates a new Zenodo DOI for each release. Use the vers
 ## DOI Records
 
 - v1.0.0 version DOI: https://doi.org/10.5281/zenodo.20838084
-- v1.1.0 version DOI: pending archive creation
+- v1.1.0 version DOI: https://doi.org/10.5281/zenodo.21860065
 - Concept DOI: https://doi.org/10.5281/zenodo.20838083

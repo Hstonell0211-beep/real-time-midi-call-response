@@ -2,7 +2,7 @@
 
 Integrity and evidence-chain release for **Real-Time MIDI Call-and-Response Generation Using Autoregressive Transformers**.
 
-Zenodo version DOI: pending archive creation.
+Zenodo version DOI: https://doi.org/10.5281/zenodo.21860065
 All-versions concept DOI: https://doi.org/10.5281/zenodo.20838083
 
 ## Corrections
