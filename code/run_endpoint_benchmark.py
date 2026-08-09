@@ -315,7 +315,9 @@ def write_csv(path: Path, rows: Sequence[Dict[str, object]]) -> None:
     if not rows:
         raise ValueError(f"No rows for {path}")
     with path.open("w", encoding="utf-8-sig", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
+        writer = csv.DictWriter(
+            handle, fieldnames=list(rows[0].keys()), lineterminator="\n"
+        )
         writer.writeheader()
         writer.writerows(rows)
 
@@ -329,8 +331,8 @@ def write_report(path: Path, summaries: Sequence[Dict[str, object]]) -> None:
     lines = [
         "# Call100 MIDI-VAD Endpoint Benchmark",
         "",
-        "Reference boundary: final Note-Off in each isolated Call100 MIDI file. ",
-        "A commit earlier than 100 ms before the reference is premature. Results are ",
+        "Reference boundary: final Note-Off in each isolated Call100 MIDI file.",
+        "A commit earlier than 100 ms before the reference is premature. Results are",
         "reported at 0.5, 1.0, and 2.0 s post-boundary deadlines; the table below uses 2.0 s.",
         "This file-end proxy is reproducible but is not a substitute for human boundary annotation.",
         "",
@@ -347,7 +349,8 @@ def write_report(path: Path, summaries: Sequence[Dict[str, object]]) -> None:
             f"{float(row['candidate_cancel_rate']):.3f} | "
             f"{int(row['premature_decision_count'])} |"
         )
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    with path.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write("\n".join(lines) + "\n")
 
 
 def parse_args() -> argparse.Namespace:

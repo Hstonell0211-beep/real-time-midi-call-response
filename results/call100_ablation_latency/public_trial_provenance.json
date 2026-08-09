@@ -1,10 +1,10 @@
 {
   "score_version": "structural_compliance_v1.1",
   "source_ablation_sha256": "a41047ca74013f54a4ae6999a402bf7e2d83cabdbb1664bebf55827317e48150",
-  "export_script_sha256": "12df8b309a22a950804e52a678a7ba59b653fff84098e72c599ecea8b70e057d",
+  "export_script_sha256": "71dcd8d011d13b30b181e0b2743d2545581140725a2b2dbe0c0b62887e896bef",
   "ablation_trial_metrics": {
     "rows": 63000,
-    "sha256": "fe572db5d714bc59e0f1a2f528c0a8195dc65aca4654776bae6adc670317c94a",
+    "sha256": "218837c26760f23551b2e415cdb7c55af426817246518c8f6f39414de1007d97",
     "semantic_changes": [
       "fallback_count renamed to event_repair_count",
       "fallback_used replaced by event_repair_used",
@@ -15,6 +15,6 @@
   },
   "latency_log_all_trials": {
     "rows": 18000,
-    "sha256": "716104dcf67ce0e3dec671e870f4a0611c20c80b2ded8134750d41df46f0c47f"
+    "sha256": "00e99bb2c12921921493d06a2ca42fbf11523e21240d5c63c3a2793e68782d9b"
   }
 }

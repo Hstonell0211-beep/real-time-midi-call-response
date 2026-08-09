@@ -497,14 +497,35 @@ def main() -> None:
         "objective_human_alignment": objective_human_alignment(items),
     }
 
-    manifest.to_csv(args.output_dir / "exclusion_manifest.csv", index=False, encoding="utf-8-sig")
-    comparison_frame.to_csv(args.output_dir / "comparison_summary.csv", index=False, encoding="utf-8-sig")
-    question_frame.to_csv(
-        args.output_dir / "question_comparison_summary.csv", index=False, encoding="utf-8-sig"
+    manifest.to_csv(
+        args.output_dir / "exclusion_manifest.csv",
+        index=False,
+        encoding="utf-8-sig",
+        lineterminator="\n",
     )
-    items.to_csv(args.output_dir / "item_summary.csv", index=False, encoding="utf-8-sig")
+    comparison_frame.to_csv(
+        args.output_dir / "comparison_summary.csv",
+        index=False,
+        encoding="utf-8-sig",
+        lineterminator="\n",
+    )
+    question_frame.to_csv(
+        args.output_dir / "question_comparison_summary.csv",
+        index=False,
+        encoding="utf-8-sig",
+        lineterminator="\n",
+    )
+    items.to_csv(
+        args.output_dir / "item_summary.csv",
+        index=False,
+        encoding="utf-8-sig",
+        lineterminator="\n",
+    )
     pd.DataFrame(sensitivity).to_csv(
-        args.output_dir / "straightliner_sensitivity.csv", index=False, encoding="utf-8-sig"
+        args.output_dir / "straightliner_sensitivity.csv",
+        index=False,
+        encoding="utf-8-sig",
+        lineterminator="\n",
     )
     (args.output_dir / "analysis_summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"

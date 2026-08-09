@@ -13,7 +13,7 @@
   },
   "public_trial_metrics": {
     "path": "harmonized_trial_metrics.csv",
-    "sha256": "4709cfcb53d3a13be4a20c9e4face33ce4b59fc461d274d01dbcfd3928a4d751",
+    "sha256": "a6af03f6629535ddd317f680f3d0f74edcbaeb9766469aa9ae95af00e64d813e",
     "path_redaction": "The response_midi_path field was replaced by response_midi_file; MIDI SHA-256 values are retained."
   },
   "audit": {
