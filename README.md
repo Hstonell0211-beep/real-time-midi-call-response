@@ -165,12 +165,17 @@ Full regeneration requires third-party model weights and the Call100 MIDI inputs
 These checks do not require model weights, MIDI hardware, or the excluded raw outputs:
 
 ```powershell
+python -m pip install mido
 python -m compileall code
 python code/run_call100_objective_search.py --help
 python code/run_call100_ablation_latency.py --help
+python code/build_harmonized_call100_evaluation.py --help
+python code/run_endpoint_benchmark.py --help
+python code/test_evaluation_integrity.py
+python code/test_endpoint_benchmark.py
 ```
 
-GitHub Actions runs the same commands on pushes and pull requests so the published repository keeps a minimal syntax and CLI smoke check.
+GitHub Actions runs the same syntax, CLI, and regression checks on pushes and pull requests.
 
 ## GitHub Pages
 
