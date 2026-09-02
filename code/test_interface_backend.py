@@ -18,13 +18,16 @@ from vst_host_manager import PianoHostManager
 
 
 class MidiIsolationTests(unittest.TestCase):
-    def test_live_interface_defaults_to_paper_controlled_amt(self) -> None:
+    def test_live_interface_defaults_to_streaming_amt(self) -> None:
         config = StudioConfig()
 
         self.assertEqual(config.backend, "amt")
-        self.assertEqual(config.response_strategy, "controlled_amt")
+        self.assertEqual(config.response_strategy, "streaming_amt")
+        self.assertEqual(config.amt_generation_budget, 4.0)
+        self.assertGreater(config.max_underrun_seconds, config.amt_generation_budget)
+        self.assertEqual(config.partial_fallback_max_share, 0.5)
 
-    def test_live_command_locks_paper_algorithm_and_a6_controls(self) -> None:
+    def test_live_command_locks_streaming_amt_and_live_controls(self) -> None:
         controller = LiveStudioController()
         controller.config.backend = "aria"
         controller.config.response_strategy = "motif"
@@ -34,21 +37,22 @@ class MidiIsolationTests(unittest.TestCase):
         self.assertEqual(command[command.index("--backend") + 1], "amt")
         self.assertEqual(
             command[command.index("--response-strategy") + 1],
-            "controlled_amt",
+            "streaming_amt",
         )
         for flag in (
             "--musical-control",
-            "--speculative-preload",
             "--fallback-on-empty",
-            "--duration-match",
+            "--no-duration-match",
             "--live-stop-on-target-notes",
             "--same-pitch-limit",
             "--dominant-pitch-max-share",
             "--response-length-ratio",
             "--response-note-ratio",
             "--live-style",
+            "--partial-fallback-max-share",
         ):
             self.assertIn(flag, command)
+        self.assertNotIn("--speculative-preload", command)
 
     def test_runtime_rejects_motif_as_normal_response_strategy(self) -> None:
         controller = LiveStudioController()
@@ -60,7 +64,7 @@ class MidiIsolationTests(unittest.TestCase):
             )
         )
 
-        self.assertEqual(controller.config.response_strategy, "controlled_amt")
+        self.assertEqual(controller.config.response_strategy, "streaming_amt")
         messages = [call.args[0] for call in controller.manager.broadcast.await_args_list]
         self.assertTrue(any(message.get("type") == "error" for message in messages))
 
@@ -111,18 +115,19 @@ class MidiIsolationTests(unittest.TestCase):
 
         self.assertEqual(controller.session.status, "listening")
 
-    def test_live_command_caps_single_note_endpoint_wait(self) -> None:
+    def test_live_command_uses_latest_paper_endpoint_settings(self) -> None:
         command = LiveStudioController().build_live_command("IAC Driver Python_IN")
-        max_cutoff_index = command.index("--max-cutoff")
 
-        self.assertEqual(command[max_cutoff_index + 1], "0.75")
+        self.assertNotIn("--min-cutoff", command)
+        self.assertNotIn("--max-cutoff", command)
+        self.assertEqual(command[command.index("--endpoint-confirm-delay") + 1], "0.15")
 
     def test_live_command_uses_display_latency_budget(self) -> None:
         controller = LiveStudioController()
         command = controller.build_live_command("IAC Driver Python_IN")
 
         self.assertEqual(controller.config.response_seconds, 3.0)
-        self.assertEqual(command[command.index("--amt-generation-budget") + 1], "0.9")
+        self.assertEqual(command[command.index("--amt-generation-budget") + 1], "4.0")
 
     def test_live_command_monitors_human_input_into_logic(self) -> None:
         command = LiveStudioController().build_live_command("Minilab3 MIDI")

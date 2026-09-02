@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from statistics import mean
-from typing import Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Callable, Dict, Iterable, Iterator, List, Optional, Tuple
 
 from drum_loop import DrumEvent, is_drum_pad_note
 from loop_bank import LoopEvent, ResponseLoopBank
@@ -61,9 +61,9 @@ DEFAULT_OUTPUT_PORT = "Python_OUT"
 DEFAULT_MELODY_OUTPUT_PORT = "Logic Pro Virtual In"
 TIME_RESOLUTION = 100
 LATENCY_PRESETS = {
-    # The live console creates a complete, duration-shaped event list before
-    # playback, so fast mode only needs a short guard window for its first
-    # event.  A two-second buffer made the interface feel unresponsive.
+    # Fast live mode starts after one streamed event and keeps filling the
+    # playback queue while the response is heard. A two-second guard buffer
+    # made the turn-based interface feel unresponsive.
     "fast": (1, 0.35),
     "balanced": (2, 0.80),
     "classic": (3, 2.00),
@@ -502,6 +502,21 @@ def clamp_int(value: int, lower: int, upper: int) -> int:
     return min(max(value, lower), upper)
 
 
+def quantize_onset_to_rhythm_grid(
+    onset_offset: float,
+    bpm: float,
+    strength: float = 0.92,
+) -> float:
+    """Pull a response onset toward the nearest learned 1/16-note grid point."""
+
+    if bpm <= 0:
+        return max(0.0, onset_offset)
+    grid = (60.0 / bpm) / 4.0
+    quantized = round(max(0.0, onset_offset) / grid) * grid
+    amount = clamp_float(strength, 0.0, 1.0)
+    return max(0.0, onset_offset + (quantized - onset_offset) * amount)
+
+
 def should_use_motif_fallback(
     *,
     generated_count: int,
@@ -510,13 +525,13 @@ def should_use_motif_fallback(
     response_strategy: str,
     stopped: bool,
 ) -> bool:
-    """Allow the motif rescue only for an empty Controlled AMT response."""
+    """Allow a full motif rescue only when an AMT response is empty."""
 
     return (
         generated_count == 0
         and fallback_on_empty
         and backend == "amt"
-        and response_strategy == "controlled_amt"
+        and response_strategy in {"controlled_amt", "streaming_amt"}
         and not stopped
     )
 
@@ -988,6 +1003,58 @@ def build_rescue_response_events(
     return events
 
 
+def partial_fallback_limit(
+    amt_event_count: int,
+    target_event_count: int,
+    max_fallback_share: float,
+) -> int:
+    """Cap partial motif completion so AMT remains the primary response source.
+
+    A non-empty live response may be completed after the AMT streaming window,
+    but motif events never outnumber the AMT events that were actually heard.
+    A zero-event response still uses the existing full fallback path.
+    """
+
+    if amt_event_count <= 0 or target_event_count <= amt_event_count:
+        return 0
+    share_cap = max(0, int(math.floor(target_event_count * clamp_float(max_fallback_share, 0.0, 1.0))))
+    missing = target_event_count - amt_event_count
+    return min(missing, share_cap, amt_event_count)
+
+
+def build_partial_motif_completion(
+    amt_events: List[GeneratedEvent],
+    template_events: List[GeneratedEvent],
+    fill_count: int,
+    grid_ticks: int,
+    controller: Optional[MusicalResponseController],
+) -> List[GeneratedEvent]:
+    """Append a bounded motif tail after already-streamed AMT events."""
+
+    if not amt_events or not template_events or fill_count <= 0:
+        return []
+    last_tick = max(event.tick for event in amt_events)
+    step = max(1, int(grid_ticks))
+    completed: List[GeneratedEvent] = []
+    for index in range(fill_count):
+        source = template_events[(len(amt_events) + index) % len(template_events)]
+        event = GeneratedEvent(
+            tick=last_tick + step * (index + 1),
+            duration_ticks=source.duration_ticks,
+            pitch=source.pitch,
+            instrument=source.instrument,
+            velocity=source.velocity,
+        )
+        if controller is not None:
+            reason = controller.rejection_reason(event)
+            if reason is not None:
+                controller.reject(reason)
+                event = controller.fallback_event(event)
+            event = controller.accept(event)
+        completed.append(event)
+    return completed
+
+
 def response_duration_seconds(
     events: List[GeneratedEvent],
     min_note_duration: float,
@@ -1097,6 +1164,45 @@ def shape_response_duration(
     return shaped, raw_duration, actual_duration, stretch_factor
 
 
+def project_live_event_to_call_scale(
+    event: GeneratedEvent,
+    profile: CallProfile,
+    plan: ResponsePlan,
+    previous_pitch: Optional[int],
+    max_melodic_leap: int = 7,
+) -> GeneratedEvent:
+    """Project one streaming event into the inferred Call-relative pentatonic key."""
+
+    intervals = (0, 3, 5, 7, 10) if profile.scale_mode == "minor" else (0, 2, 4, 7, 9)
+    pitch_classes = {(profile.scale_root + interval) % 12 for interval in intervals}
+    candidates = [
+        pitch
+        for pitch in range(plan.pitch_min, plan.pitch_max + 1)
+        if pitch % 12 in pitch_classes
+    ]
+    if not candidates:
+        return event
+    allowed = candidates
+    if previous_pitch is not None and max_melodic_leap > 0:
+        local = [pitch for pitch in candidates if abs(pitch - previous_pitch) <= max_melodic_leap]
+        if local:
+            allowed = local
+    pitch = min(allowed, key=lambda value: (abs(value - event.pitch), value))
+    if previous_pitch is not None and pitch == previous_pitch and len(allowed) > 1:
+        alternatives = [value for value in allowed if value != previous_pitch]
+        pitch = min(
+            alternatives,
+            key=lambda value: (abs(value - event.pitch), abs(value - previous_pitch)),
+        )
+    return GeneratedEvent(
+        tick=event.tick,
+        duration_ticks=event.duration_ticks,
+        pitch=pitch,
+        instrument=event.instrument,
+        velocity=event.velocity,
+    )
+
+
 def apply_live_pentatonic_style(
     events: List[GeneratedEvent],
     profile: CallProfile,
@@ -1125,25 +1231,15 @@ def apply_live_pentatonic_style(
     styled: List[GeneratedEvent] = []
     previous_pitch: Optional[int] = None
     for event in sorted(events, key=lambda item: (item.tick, item.pitch)):
-        allowed = candidates
-        if previous_pitch is not None and max_melodic_leap > 0:
-            local = [pitch for pitch in candidates if abs(pitch - previous_pitch) <= max_melodic_leap]
-            if local:
-                allowed = local
-        pitch = min(allowed, key=lambda value: (abs(value - event.pitch), value))
-        if previous_pitch is not None and pitch == previous_pitch and len(allowed) > 1:
-            alternatives = [value for value in allowed if value != previous_pitch]
-            pitch = min(alternatives, key=lambda value: (abs(value - event.pitch), abs(value - previous_pitch)))
-        styled.append(
-            GeneratedEvent(
-                tick=event.tick,
-                duration_ticks=event.duration_ticks,
-                pitch=pitch,
-                instrument=event.instrument,
-                velocity=event.velocity,
-            )
+        projected = project_live_event_to_call_scale(
+            event,
+            profile,
+            plan,
+            previous_pitch,
+            max_melodic_leap=max_melodic_leap,
         )
-        previous_pitch = pitch
+        styled.append(projected)
+        previous_pitch = projected.pitch
 
     cadence_candidates = [pitch for pitch in candidates if pitch % 12 == profile.scale_root]
     if cadence_candidates:
@@ -2041,9 +2137,11 @@ class ResponsePlayer:
 
             onset_offset = max(0.0, (event.tick - first_tick) / TIME_RESOLUTION)
             if rhythm_bpm is not None:
-                grid = (60.0 / rhythm_bpm) / 4.0
-                quantized = round(onset_offset / grid) * grid
-                onset_offset += (quantized - onset_offset) * self.rhythm_quantize_strength
+                onset_offset = quantize_onset_to_rhythm_grid(
+                    onset_offset,
+                    rhythm_bpm,
+                    self.rhythm_quantize_strength,
+                )
             target_time = playback_start + onset_offset
             if not self._sleep_until(target_time, active_notes):
                 break
@@ -2732,6 +2830,56 @@ class LiveCallResponseApp:
         )
         return blended
 
+    def _stream_budgeted_amt_events(
+        self,
+        call_events: List[int],
+        response_seconds: float,
+        target_count: int,
+    ) -> Iterator[GeneratedEvent]:
+        """Yield AMT events as they arrive while enforcing a live wall-time budget."""
+
+        model_queue: "queue.Queue[Optional[GeneratedEvent]]" = queue.Queue()
+        local_stop = threading.Event()
+
+        def producer() -> None:
+            try:
+                for event in self.generator.generate_events(
+                    call_events,
+                    response_seconds=response_seconds,
+                    stop_event=local_stop,
+                    controller=None,
+                ):
+                    model_queue.put(event)
+                    if local_stop.is_set():
+                        break
+            except Exception as exc:
+                print(f"[amt-stream] model sampling failed: {exc!r}")
+            finally:
+                model_queue.put(None)
+
+        threading.Thread(target=producer, daemon=True).start()
+        deadline = time.monotonic() + self.args.amt_generation_budget
+        emitted = 0
+        try:
+            while emitted < target_count and not self.stop_event.is_set():
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    print(
+                        f"[amt-stream] budget={self.args.amt_generation_budget:.2f}s "
+                        f"model_events={emitted}; closing neural stream"
+                    )
+                    break
+                try:
+                    item = model_queue.get(timeout=min(0.05, remaining))
+                except queue.Empty:
+                    continue
+                if item is None:
+                    break
+                emitted += 1
+                yield item
+        finally:
+            local_stop.set()
+
     def on_candidate_endpoint(self, candidate: EndpointCandidate) -> None:
         if not self._can_speculatively_preload():
             return
@@ -2977,9 +3125,15 @@ class LiveCallResponseApp:
             )
         else:
             print(f"[round {round_id}] [plan] musical_control=off")
+        streaming_live = (
+            self.args.backend == "amt"
+            and self.args.response_strategy == "streaming_amt"
+        )
         generator_label = (
             "PUBLISHED MOTIF"
             if self.args.response_strategy == "motif"
+            else "STREAMING AMT"
+            if streaming_live
             else self.args.backend.upper()
         )
         print(f"[round {round_id}] [generating] {generator_label} response thread started")
@@ -2989,6 +3143,8 @@ class LiveCallResponseApp:
         def inference_worker() -> None:
             first_latency_reported = False
             count = 0
+            amt_generated_count = 0
+            previous_live_pitch: Optional[int] = None
             generated_events: List[GeneratedEvent] = []
             # If speculative AMT has already consumed its full budget and
             # produced no events, retrying exactly the same request here used
@@ -3065,6 +3221,12 @@ class LiveCallResponseApp:
                             controller=controller,
                             live_mode=self.args.aria_live_mode,
                         )
+                    elif streaming_live:
+                        event_iter = self._stream_budgeted_amt_events(
+                            call_events,
+                            response_seconds=response_seconds,
+                            target_count=min(self.args.max_events, plan.target_notes),
+                        )
                     elif self.args.latency_mode == "fast":
                         # Sample the paper AMT inside a fixed real-time budget,
                         # then let the existing phrase controller complete and
@@ -3087,6 +3249,22 @@ class LiveCallResponseApp:
                             controller=controller,
                         )
                 for event in event_iter:
+                    if streaming_live:
+                        if controller is not None:
+                            reason = controller.rejection_reason(event)
+                            if reason is not None:
+                                controller.reject(reason)
+                                event = controller.fallback_event(event)
+                        if self.args.live_style == "pentatonic":
+                            event = project_live_event_to_call_scale(
+                                event,
+                                profile,
+                                plan,
+                                previous_live_pitch,
+                            )
+                            previous_live_pitch = event.pitch
+                        if controller is not None:
+                            event = controller.accept(event)
                     if not first_latency_reported:
                         if metrics.first_event_time is None:
                             metrics.first_event_time = time.monotonic()
@@ -3095,7 +3273,7 @@ class LiveCallResponseApp:
                             f"first_event_latency={time.perf_counter() - t0:.3f}s"
                         )
                         first_latency_reported = True
-                    if self.args.duration_match:
+                    if self.args.duration_match and not streaming_live:
                         generated_events.append(event)
                     else:
                         events_queue.put(event)
@@ -3107,6 +3285,7 @@ class LiveCallResponseApp:
                     )
                     if count >= self.args.max_events:
                         break
+                amt_generated_count = count if streaming_live else 0
                 if should_use_motif_fallback(
                     generated_count=count,
                     fallback_on_empty=self.args.fallback_on_empty,
@@ -3129,6 +3308,14 @@ class LiveCallResponseApp:
                             f"using motif fallback events={len(rescue_events)}"
                         )
                     for event in rescue_events:
+                        if streaming_live and self.args.live_style == "pentatonic":
+                            event = project_live_event_to_call_scale(
+                                event,
+                                profile,
+                                plan,
+                                previous_live_pitch,
+                            )
+                            previous_live_pitch = event.pitch
                         if not first_latency_reported:
                             if metrics.first_event_time is None:
                                 metrics.first_event_time = time.monotonic()
@@ -3137,7 +3324,7 @@ class LiveCallResponseApp:
                                 f"first_event_latency={time.perf_counter() - t0:.3f}s"
                             )
                             first_latency_reported = True
-                        if self.args.duration_match:
+                        if self.args.duration_match and not streaming_live:
                             generated_events.append(event)
                         else:
                             events_queue.put(event)
@@ -3150,16 +3337,61 @@ class LiveCallResponseApp:
                         if count >= self.args.max_events:
                             break
 
-                if generated_events and self.args.duration_match:
-                    if self.args.duration_match:
-                        shaped_events, raw_duration, actual_duration, stretch_factor = shape_response_duration(
-                            generated_events,
-                            plan,
-                            min_note_duration=self.args.min_note_duration,
-                            max_note_duration=self.args.max_note_duration,
-                            min_share=self.args.duration_match_min_share,
-                            max_share=self.args.duration_match_max_share,
+                if streaming_live and amt_generated_count > 0 and count < self.args.max_events:
+                    target_event_count = min(plan.target_notes, self.args.max_events)
+                    fill_count = partial_fallback_limit(
+                        amt_generated_count,
+                        target_event_count,
+                        self.args.partial_fallback_max_share,
+                    )
+                    template_events = build_rescue_response_events(
+                        prompt_phrase,
+                        profile,
+                        plan,
+                        controller=None,
+                        default_note_duration=self.args.default_note_duration,
+                        min_note_duration=self.args.min_note_duration,
+                        max_note_duration=self.args.max_note_duration,
+                    )
+                    completion_events = build_partial_motif_completion(
+                        generated_events,
+                        template_events,
+                        fill_count,
+                        grid_ticks=max(1, round(estimate_phrase_grid(prompt_phrase) * TIME_RESOLUTION)),
+                        controller=controller,
+                    )
+                    for event in completion_events:
+                        if self.args.live_style == "pentatonic":
+                            event = project_live_event_to_call_scale(
+                                event,
+                                profile,
+                                plan,
+                                previous_live_pitch,
+                            )
+                            previous_live_pitch = event.pitch
+                        events_queue.put(event)
+                        generated_events.append(event)
+                        count += 1
+                        print(
+                            f"[round {round_id}] [partial_fallback] event #{count}: "
+                            f"tick={event.tick} dur={event.duration_ticks} pitch={event.pitch}"
                         )
+                    if completion_events:
+                        print(
+                            f"[round {round_id}] [partial_fallback] "
+                            f"amt={amt_generated_count} motif={len(completion_events)} "
+                            f"target={target_event_count}"
+                        )
+
+                if generated_events and self.args.duration_match and not streaming_live:
+                    shaped_events, raw_duration, actual_duration, stretch_factor = shape_response_duration(
+                        generated_events,
+                        plan,
+                        min_note_duration=self.args.min_note_duration,
+                        max_note_duration=self.args.max_note_duration,
+                        min_share=self.args.duration_match_min_share,
+                        max_share=self.args.duration_match_max_share,
+                    )
                     generated_events = shaped_events
                     if self.args.live_style == "pentatonic":
                         generated_events = apply_live_pentatonic_style(
@@ -3493,18 +3725,25 @@ def build_parser() -> argparse.ArgumentParser:
         "--amt-generation-budget",
         type=float,
         default=1.8,
-        help="maximum live seconds spent sampling AMT before completing the response from its musical template",
+        help="maximum live seconds spent sampling AMT before any bounded completion",
     )
     parser.add_argument("--top-p", type=float, default=0.98)
     parser.add_argument("--temperature", type=float, default=0.9)
     parser.add_argument(
         "--response-strategy",
-        choices=["controlled_amt", "motif"],
+        choices=["controlled_amt", "streaming_amt", "motif"],
         default="controlled_amt",
         help=(
-            "controlled_amt uses the paper's frozen AMT plus phrase controller; "
-            "motif uses its deterministic live motif transform for immediate, stable responses"
+            "controlled_amt keeps the paper-compatible AMT path; streaming_amt plays AMT "
+            "events while generation continues and permits only bounded motif completion; "
+            "motif uses the deterministic transform by itself"
         ),
+    )
+    parser.add_argument(
+        "--partial-fallback-max-share",
+        type=float,
+        default=0.50,
+        help="maximum target-note share supplied by motif after a non-empty AMT stream",
     )
     parser.add_argument(
         "--musical-control",
@@ -3647,6 +3886,8 @@ def validate_args(args: argparse.Namespace) -> None:
         raise SystemExit("--max-events must be at least 1.")
     if args.amt_generation_budget <= 0:
         raise SystemExit("--amt-generation-budget must be positive.")
+    if not 0.0 <= args.partial_fallback_max_share <= 1.0:
+        raise SystemExit("--partial-fallback-max-share must be in [0, 1].")
     if args.same_pitch_limit < 1:
         raise SystemExit("--same-pitch-limit must be at least 1.")
     if not 0.0 < args.duration_match_min_share <= 1.0:

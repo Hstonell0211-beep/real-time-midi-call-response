@@ -215,10 +215,10 @@ function renderConfig(payload) {
         backendSelect.value = "amt_small";
     }
     if (payload.response_strategy) {
-        $("backend-display").textContent = "论文核心";
-        $("response-engine-name").textContent = "Controlled AMT";
-        $("response-engine-subtitle").textContent = "冻结 AMT + 论文乐句控制器";
-        $("model-note").textContent = "每次回应固定使用论文 Controlled AMT；Motif 只在模型没有生成任何可播放音符时自动兜底。";
+        $("backend-display").textContent = "现场流式";
+        $("response-engine-name").textContent = "Streaming AMT";
+        $("response-engine-subtitle").textContent = "AMT 主体 + 动态调性 + 有限补齐";
+        $("model-note").textContent = "AMT 音符生成后立即进入播放队列；Motif 只在空输出或 AMT 已形成主体后的有限尾部补齐中使用。";
     }
 }
 

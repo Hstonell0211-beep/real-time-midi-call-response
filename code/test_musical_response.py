@@ -1,5 +1,6 @@
 import threading
 import unittest
+from types import SimpleNamespace
 
 from live_call_response import (
     CapturedNote,
@@ -10,8 +11,12 @@ from live_call_response import (
     GeneratedEvent,
     analyze_call_phrase,
     apply_live_pentatonic_style,
+    build_partial_motif_completion,
     build_rescue_response_events,
     build_response_plan,
+    partial_fallback_limit,
+    project_live_event_to_call_scale,
+    quantize_onset_to_rhythm_grid,
     should_capture_rhythm_pad,
     should_use_motif_fallback,
 )
@@ -19,7 +24,7 @@ from midi_vad_endpoint import EndpointDecision, MidiNoteEvent
 
 
 class MusicalResponseTests(unittest.TestCase):
-    def test_motif_fallback_is_only_for_empty_controlled_amt_output(self):
+    def test_full_motif_fallback_is_only_for_empty_amt_output(self):
         allowed = should_use_motif_fallback(
             generated_count=0,
             fallback_on_empty=True,
@@ -29,6 +34,15 @@ class MusicalResponseTests(unittest.TestCase):
         )
 
         self.assertTrue(allowed)
+        self.assertTrue(
+            should_use_motif_fallback(
+                generated_count=0,
+                fallback_on_empty=True,
+                backend="amt",
+                response_strategy="streaming_amt",
+                stopped=False,
+            )
+        )
         for override in (
             {"generated_count": 1},
             {"fallback_on_empty": False},
@@ -139,6 +153,102 @@ class MusicalResponseTests(unittest.TestCase):
         )
 
         self.assertEqual(plan.target_seconds, 0.85)
+
+    def test_partial_fallback_never_outnumbers_amt_events(self):
+        self.assertEqual(partial_fallback_limit(0, 12, 0.5), 0)
+        self.assertEqual(partial_fallback_limit(2, 12, 0.5), 2)
+        self.assertEqual(partial_fallback_limit(7, 12, 0.5), 5)
+        self.assertEqual(partial_fallback_limit(12, 12, 0.5), 0)
+
+    def test_partial_motif_completion_starts_after_streamed_amt(self):
+        amt = [
+            GeneratedEvent(100, 20, 60, 0),
+            GeneratedEvent(140, 20, 64, 0),
+            GeneratedEvent(180, 20, 67, 0),
+        ]
+        template = [
+            GeneratedEvent(0, 16, 62, 0),
+            GeneratedEvent(25, 16, 65, 0),
+            GeneratedEvent(50, 16, 69, 0),
+        ]
+
+        completed = build_partial_motif_completion(
+            amt,
+            template,
+            fill_count=2,
+            grid_ticks=25,
+            controller=None,
+        )
+
+        self.assertEqual(len(completed), 2)
+        self.assertEqual([event.tick for event in completed], [205, 230])
+        self.assertTrue(all(event.tick > amt[-1].tick for event in completed))
+
+    def test_streaming_key_projection_uses_call_key_not_fixed_c(self):
+        profile = analyze_call_phrase(
+            [
+                CapturedNote(0.0, 62, 92, duration=0.25),
+                CapturedNote(0.4, 66, 92, duration=0.25),
+                CapturedNote(0.8, 69, 92, duration=0.25),
+                CapturedNote(1.2, 74, 92, duration=0.25),
+            ]
+        )
+        plan = build_response_plan(
+            profile=profile,
+            response_seconds=3.0,
+            max_events=12,
+            pitch_min=36,
+            pitch_max=96,
+            response_length_ratio=1.0,
+            response_note_ratio=1.0,
+            same_pitch_limit=2,
+            dominant_pitch_max_share=0.35,
+            resample_attempts=8,
+        )
+
+        projected = project_live_event_to_call_scale(
+            GeneratedEvent(100, 20, 61, 0),
+            profile,
+            plan,
+            previous_pitch=None,
+        )
+
+        self.assertIn(projected.pitch % 12, {2, 4, 6, 9, 11})
+        self.assertNotEqual(projected.pitch % 12, 0)
+
+    def test_streaming_amt_yields_neural_events_without_batch_shaping(self):
+        class FakeGenerator:
+            def generate_events(self, *_args, **_kwargs):
+                yield GeneratedEvent(100, 20, 60, 0)
+                yield GeneratedEvent(125, 20, 64, 0)
+                yield GeneratedEvent(150, 20, 67, 0)
+
+        app = LiveCallResponseApp.__new__(LiveCallResponseApp)
+        app.args = SimpleNamespace(amt_generation_budget=1.0)
+        app.stop_event = threading.Event()
+        app.generator = FakeGenerator()
+
+        events = list(
+            app._stream_budgeted_amt_events(
+                call_events=[],
+                response_seconds=2.0,
+                target_count=2,
+            )
+        )
+
+        self.assertEqual([event.pitch for event in events], [60, 64])
+
+    def test_learned_rhythm_pulls_response_onsets_to_sixteenth_grid(self):
+        # At 120 BPM the 1/16 grid is 0.125 s. Full-strength quantization
+        # moves a 0.31 s onset to the nearest grid point at 0.25 s.
+        self.assertAlmostEqual(
+            quantize_onset_to_rhythm_grid(0.31, bpm=120.0, strength=1.0),
+            0.25,
+        )
+        self.assertAlmostEqual(
+            quantize_onset_to_rhythm_grid(0.31, bpm=120.0, strength=0.0),
+            0.31,
+        )
 
     def test_rhythm_learning_only_captures_the_dedicated_pad_lane(self):
         class MidiMessage:

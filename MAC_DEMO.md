@@ -1,9 +1,11 @@
 # macOS Demo Setup
 
 This checkout is configured for an Apple Silicon Mac with Logic Pro.
-The live interface is locked to the paper's Controlled AMT pipeline. The
-non-neural motif baseline is not selectable during performance and is used
-only when Controlled AMT returns zero playable notes.
+The performance interface uses an AMT-first streaming mode: every accepted AMT
+event can enter playback while later events are still being sampled. The
+non-neural motif path is not selectable during performance. It rescues an empty
+AMT response or supplies a bounded tail after AMT has already established the
+reply; it can never outnumber the streamed AMT events in a partial completion.
 
 ## Start the control surface
 
@@ -67,11 +69,13 @@ and `Python_OUT`.
 
 ## Expected performance
 
-The local AMT Small checkpoint runs fully offline. For a reliable demonstration,
-the engine uses a 1.8-second neural generation budget and completes any remaining
-response notes from the captured phrase's musical template. Real MiniLab tests
-produced audible responses in about 1.8-1.9 seconds with no MIDI underruns. This
-is a turn-based demonstrator, not the paper's RTX 3060 scheduler configuration.
+The local AMT Small checkpoint runs fully offline. Live Studio gives AMT a
+4.0-second background sampling window, but playback starts from the first
+buffered event instead of waiting for the whole phrase. Notes are projected to
+the major/minor pentatonic collection inferred from the current Call, and their
+onsets are aligned to a learned 1/16-note rhythm grid when a rhythm is active.
+This is an adaptive live mode, not a claim that the latest paper's fixed
+evaluation conditions have changed.
 
 ## Local verification
 

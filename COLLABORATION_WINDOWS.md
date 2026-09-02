@@ -5,9 +5,9 @@ MFP live MIDI system.
 
 ## What is shared
 
-The repository contains the real-time MIDI engine, paper-controlled AMT
-response pipeline, rhythm learning and playback, Loop Bank, browser control
-surface, tests, and the optional macOS Logic MIDI FX source.
+The repository contains the real-time MIDI engine, the paper-compatible AMT
+path, an AMT-first streaming live mode, rhythm learning and playback, Loop Bank,
+the browser control surface, tests, and the optional macOS Logic MIDI FX source.
 
 The repository does not contain model caches, model weights, DAW content,
 third-party plug-ins, Logic sound libraries, private recordings, or runtime

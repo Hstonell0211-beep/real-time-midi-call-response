@@ -34,8 +34,8 @@ LIVE_LOG_PATH = ROOT / "logs" / "mfp_live_studio_live.log"
 LIVE_CONTROL_PATH = ROOT / "logs" / "mfp_live_controls.jsonl"
 DEFAULT_OUTPUT_PORT = "Python_OUT"
 DEFAULT_MELODY_OUTPUT_PORT = "Logic Pro Virtual In"
-PAPER_BACKEND = "amt"
-PAPER_RESPONSE_STRATEGY = "controlled_amt"
+LIVE_BACKEND = "amt"
+LIVE_RESPONSE_STRATEGY = "streaming_amt"
 DEFAULT_MODEL_ID = "stanford-crfm/music-small-800k"
 DEFAULT_ARIA_MODEL_ID = str(ROOT / "model_weights" / "aria-medium-gen")
 DEVICE_POLL_SECONDS = 1.0
@@ -129,8 +129,8 @@ def needs_piano_host(output_port: str) -> bool:
 
 @dataclass
 class StudioConfig:
-    backend: str = PAPER_BACKEND
-    response_strategy: str = PAPER_RESPONSE_STRATEGY
+    backend: str = LIVE_BACKEND
+    response_strategy: str = LIVE_RESPONSE_STRATEGY
     model_id: str = DEFAULT_MODEL_ID
     aria_model_id: str = DEFAULT_ARIA_MODEL_ID
     response_seconds: float = 3.0
@@ -138,12 +138,13 @@ class StudioConfig:
     top_p: float = 0.95
     temperature: float = 0.75
     latency_mode: str = "fast"
-    max_underrun_seconds: float = 1.5
-    min_cutoff: float = 0.30
-    max_cutoff: float = 0.75
+    max_underrun_seconds: float = 4.5
+    min_cutoff: Optional[float] = None
+    max_cutoff: Optional[float] = None
     chord_cluster_window: float = 0.08
-    endpoint_confirm_delay: float = 0.08
-    amt_generation_budget: float = 0.90
+    endpoint_confirm_delay: float = 0.15
+    amt_generation_budget: float = 4.0
+    partial_fallback_max_share: float = 0.50
     output_port: str = DEFAULT_OUTPUT_PORT
     melody_output_port: str = DEFAULT_MELODY_OUTPUT_PORT
 
@@ -501,11 +502,11 @@ class LiveStudioController:
 
     def build_live_command(self, input_port: str) -> list[str]:
         cfg = self.config
-        # The performance interface is the paper system, not an ablation picker.
-        # Keep the non-neural motif method available only as AMT's empty-output
-        # fallback inside live_call_response.py.
-        cfg.backend = PAPER_BACKEND
-        cfg.response_strategy = PAPER_RESPONSE_STRATEGY
+        # Live Studio uses AMT as the primary generator and plays each accepted
+        # event immediately. Motif logic is only an empty-output rescue or a
+        # bounded tail completion after AMT has already established the reply.
+        cfg.backend = LIVE_BACKEND
+        cfg.response_strategy = LIVE_RESPONSE_STRATEGY
         cmd = [
             sys.executable,
             "-u",
@@ -532,6 +533,8 @@ class LiveStudioController:
             str(cfg.max_events),
             "--amt-generation-budget",
             str(cfg.amt_generation_budget),
+            "--partial-fallback-max-share",
+            str(cfg.partial_fallback_max_share),
             "--top-p",
             str(cfg.top_p),
             "--temperature",
@@ -541,9 +544,8 @@ class LiveStudioController:
             "--max-underrun-seconds",
             str(cfg.max_underrun_seconds),
             "--musical-control",
-            "--speculative-preload",
             "--fallback-on-empty",
-            "--duration-match",
+            "--no-duration-match",
             "--live-stop-on-target-notes",
             "--duration-match-min-share",
             "0.80",
@@ -559,10 +561,6 @@ class LiveStudioController:
             "1.0",
             "--live-style",
             "pentatonic",
-            "--min-cutoff",
-            str(cfg.min_cutoff),
-            "--max-cutoff",
-            str(cfg.max_cutoff),
             "--chord-cluster-window",
             str(cfg.chord_cluster_window),
             "--endpoint-confirm-delay",
@@ -570,6 +568,10 @@ class LiveStudioController:
             "--control-file",
             str(LIVE_CONTROL_PATH),
         ]
+        if cfg.min_cutoff is not None:
+            cmd.extend(["--min-cutoff", str(cfg.min_cutoff)])
+        if cfg.max_cutoff is not None:
+            cmd.extend(["--max-cutoff", str(cfg.max_cutoff)])
         # The human Call and the AI response share Logic's melody track. Keep
         # monitoring enabled on macOS too so changing that Logic instrument
         # changes both what the performer plays and what the loop replays.
@@ -1031,19 +1033,19 @@ class LiveStudioController:
             params = payload.get("params", {})
             for key, value in params.items():
                 if hasattr(self.config, key):
-                    if key == "backend" and value != PAPER_BACKEND:
+                    if key == "backend" and value != LIVE_BACKEND:
                         await self.manager.broadcast(
                             {
                                 "type": "error",
-                                "message": "现场版本已锁定论文 Controlled AMT，不能切换生成后端。",
+                                "message": "现场版本固定使用流式 AMT 主生成器，不能切换生成后端。",
                             }
                         )
                         continue
-                    if key == "response_strategy" and value != PAPER_RESPONSE_STRATEGY:
+                    if key == "response_strategy" and value != LIVE_RESPONSE_STRATEGY:
                         await self.manager.broadcast(
                             {
                                 "type": "error",
-                                "message": "Motif 仅用于 AMT 空输出兜底，不能作为正常回应算法。",
+                                "message": "Motif 只用于空输出或有限尾部补齐，不能替代 AMT 主回应。",
                             }
                         )
                         continue
