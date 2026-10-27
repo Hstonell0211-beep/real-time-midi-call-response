@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Music Dialogue is a real-time MIDI call-and-response system for human–AI musical interaction." />
+    <meta name="theme-color" content="#0d1117" />
+    <title>Music Dialogue — Real-time MIDI call-and-response</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0d1117;
+        --panel: #141b23;
+        --panel-soft: #10161d;
+        --line: #273341;
+        --text: #f4f7f5;
+        --muted: #aab5b2;
+        --quiet: #74817e;
+        --accent: #b6d6c2;
+        --accent-ink: #142119;
+        --warm: #e5c58a;
+        font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body { margin: 0; background: radial-gradient(circle at 70% -10%, rgba(74,112,92,.24), transparent 35rem), var(--bg); color: var(--text); line-height: 1.6; }
+      a { color: inherit; }
+      .shell { width: min(1120px, calc(100% - 40px)); margin: 0 auto; }
+      header { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 24px 0; border-bottom: 1px solid var(--line); }
+      .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .01em; text-decoration: none; }
+      .brand-mark { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--accent); border-radius: 9px; color: var(--accent); font-size: 13px; }
+      nav { display: flex; gap: 20px; }
+      nav a { color: var(--muted); font-size: .9rem; text-decoration: none; }
+      nav a:hover { color: var(--text); }
+      .hero { display: grid; grid-template-columns: minmax(0,1.1fr) minmax(300px,.9fr); align-items: end; gap: 72px; padding: 92px 0 74px; }
+      .eyebrow { margin: 0 0 18px; color: var(--accent); font-size: .76rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+      h1, h2, h3, p { margin-top: 0; }
+      h1 { max-width: 700px; margin-bottom: 24px; font-size: clamp(3.3rem,8vw,6.7rem); letter-spacing: -.075em; line-height: .92; }
+      .lead { max-width: 630px; margin-bottom: 30px; color: var(--muted); font-size: clamp(1.1rem,2vw,1.35rem); line-height: 1.55; }
+      .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+      .button { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 18px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--text); font-size: .92rem; font-weight: 650; text-decoration: none; }
+      .button:hover { border-color: var(--accent); }
+      .button.primary { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
+      .hero-note { padding: 22px 0 0 24px; border-left: 1px solid var(--accent); color: var(--muted); }
+      .hero-note strong { display: block; margin-bottom: 8px; color: var(--text); font-size: 1.05rem; }
+      .video-card { overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: #080b0e; box-shadow: 0 26px 80px rgba(0,0,0,.28); }
+      video { display: block; width: 100%; max-height: 68vh; background: #080b0e; }
+      .video-caption { display: flex; justify-content: space-between; gap: 20px; padding: 14px 16px; color: var(--quiet); font-size: .84rem; }
+      .section { padding: 74px 0; border-top: 1px solid var(--line); }
+      .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 30px; margin-bottom: 30px; }
+      h2 { margin-bottom: 0; font-size: clamp(1.8rem,3vw,2.6rem); letter-spacing: -.045em; line-height: 1; }
+      .section-heading p { max-width: 520px; margin-bottom: 0; color: var(--muted); }
+      .steps, .evidence { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+      .card { padding: 24px; border: 1px solid var(--line); border-radius: 12px; background: linear-gradient(145deg, var(--panel), var(--panel-soft)); }
+      .step-number { color: var(--warm); font-size: .78rem; font-weight: 750; letter-spacing: .14em; }
+      h3 { margin: 20px 0 9px; font-size: 1.1rem; }
+      .card p { margin-bottom: 0; color: var(--muted); font-size: .94rem; }
+      .facts { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+      .fact { padding: 20px 0; border-top: 1px solid var(--line); }
+      .fact strong { display: block; margin-bottom: 5px; color: var(--accent); font-size: 1.45rem; letter-spacing: -.03em; }
+      .fact span { color: var(--muted); font-size: .86rem; }
+      .research { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+      .research .card { min-height: 100%; }
+      .research ul { margin: 16px 0 0; padding-left: 19px; color: var(--muted); }
+      .research li + li { margin-top: 8px; }
+      .share { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 28px; border: 1px solid #526659; border-radius: 12px; background: rgba(47,74,59,.2); }
+      .share p { max-width: 640px; margin-bottom: 0; color: var(--muted); }
+      footer { padding: 28px 0 42px; color: var(--quiet); font-size: .83rem; }
+      footer a { color: var(--muted); }
+      @media (max-width: 780px) {
+        .shell { width: min(100% - 28px, 620px); }
+        header { align-items: flex-start; }
+        nav { gap: 12px; }
+        .hero { grid-template-columns: 1fr; gap: 36px; padding: 62px 0 50px; }
+        .hero-note { padding-top: 0; padding-left: 18px; }
+        .steps, .evidence, .facts, .research { grid-template-columns: 1fr 1fr; }
+        .section-heading, .share { align-items: flex-start; flex-direction: column; }
+      }
+      @media (max-width: 480px) {
+        nav a:nth-child(1) { display: none; }
+        h1 { font-size: clamp(3rem,17vw,4.6rem); }
+        .steps, .evidence, .facts, .research { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header>
+        <a class="brand" href="./" aria-label="Music Dialogue home"><span class="brand-mark">MD</span><span>Music Dialogue</span></a>
+        <nav aria-label="Project navigation"><a href="#research">Research</a><a href="paper/Real_Time_MIDI_Call_and_Response_Generation_Using_Autoregressive_Transformers.pdf">Paper</a><a href="https://github.com/Hstonell0211-beep/real-time-midi-call-response">GitHub</a></nav>
+      </header>
+      <main>
+        <section class="hero">
+          <div>
+            <p class="eyebrow">Real-time MIDI call-and-response</p>
+            <h1>A musical partner that listens.</h1>
+            <p class="lead">Music Dialogue hears a MIDI phrase, detects when it ends, and answers with new music. It is built for human–AI musical interaction in rehearsal, performance, and research.</p>
+            <div class="actions"><a class="button primary" href="#demo">Watch the demo</a><a class="button" href="paper/Real_Time_MIDI_Call_and_Response_Generation_Using_Autoregressive_Transformers.pdf">Read the paper</a></div>
+          </div>
+          <div class="hero-note"><strong>Not a loop pedal.</strong>The system does not simply repeat what was played. It uses the phrase as a structured MIDI prompt and generates a new response through an autoregressive music model and a real-time control layer.</div>
+        </section>
+        <section class="section" id="demo">
+          <div class="section-heading"><h2>See it in action</h2><p>A short demonstration of the system listening to a phrase and producing a response.</p></div>
+          <div class="video-card"><video controls preload="metadata" playsinline><source src="music-dialogue-demo.mp4" type="video/mp4" />Your browser does not support embedded video. <a href="music-dialogue-demo.mp4">Open the MP4 directly.</a></video><div class="video-caption"><span>Music Dialogue demonstration</span><a href="music-dialogue-demo.mp4">Open direct video link</a></div></div>
+        </section>
+        <section class="section">
+          <div class="section-heading"><h2>From phrase to response</h2><p>The public demo is static. The live MIDI engine runs locally so the performer keeps control of the instrument, routing, and audio output.</p></div>
+          <div class="steps"><article class="card"><span class="step-number">01 / LISTEN</span><h3>Receive MIDI</h3><p>The system records incoming note events, including their timing, duration, and pitch.</p></article><article class="card"><span class="step-number">02 / UNDERSTAND</span><h3>Find the phrase ending</h3><p>An adaptive endpoint detector estimates when the performer has finished a musical thought.</p></article><article class="card"><span class="step-number">03 / ANSWER</span><h3>Generate new music</h3><p>A frozen autoregressive music model produces a continuation shaped by the phrase-level controller.</p></article></div>
+        </section>
+        <section class="section" id="research">
+          <div class="section-heading"><h2>Research snapshot</h2><p>The page links directly to the paper, source code, and the evidence files used to describe the system.</p></div>
+          <div class="facts"><div class="fact"><strong>MIDI</strong><span>Symbolic note events with timing, duration, and pitch</span></div><div class="fact"><strong>AMT</strong><span>Autoregressive symbolic-music Transformer backend</span></div><div class="fact"><strong>27,000</strong><span>Harmonized Call100 trial records</span></div><div class="fact"><strong>0.171642</strong><span>Controlled versus raw structural-score gain</span></div></div>
+          <div class="research" style="margin-top:28px"><article class="card"><h3>What the model does</h3><p>The underlying model generates symbolic-music continuations from MIDI events. It does not receive a natural-language instruction such as “respond to me.”</p><ul><li>continuous-time note representation</li><li>temperature-scaled nucleus sampling</li><li>new MIDI events as the response</li></ul></article><article class="card"><h3>What the surrounding system adds</h3><p>The real-time controller turns continuation into an interactive call-and-response experience.</p><ul><li>adaptive phrase-end detection</li><li>duration, repetition, register, and style constraints</li><li>asynchronous scheduling and playback buffering</li></ul></article></div>
+        </section>
+        <section class="section"><div class="share"><div><h2>Explore the project</h2><p>Read the full paper, inspect the implementation, and review the reproducibility materials in the repository.</p></div><div class="actions"><a class="button primary" href="https://github.com/Hstonell0211-beep/real-time-midi-call-response">Open GitHub</a><a class="button" href="https://github.com/Hstonell0211-beep/real-time-midi-call-response/blob/main/docs/index.md">Evidence index</a></div></div></section>
+      </main>
+      <footer>Developed by Sitong Hu and Zitong Wang · <a href="https://github.com/MickeyWzt/real-time-midi-call-response">Original project repository</a> · <a href="LICENSE">MIT License</a></footer>
+    </div>
+  </body>
+</html>
